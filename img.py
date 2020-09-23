@@ -69,9 +69,10 @@ def import_all(folder_path):
 
 
 def import_pair(path):
+    resnet = models.resnet50(pretrained=True).to(device)
     folders = os.listdir(path)
     pair = []
     for f in folders:
         vid_path = path + f + "/"
-        pair.append(import_images(vid_path))
+        pair.append(import_images(resnet, vid_path))
     return pair

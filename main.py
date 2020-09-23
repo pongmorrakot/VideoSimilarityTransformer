@@ -87,6 +87,11 @@ class siameseTransformer(nn.Module):
         # pdist = nn.PairwiseDistance()
         # euclidean_distance = pdist(output1, output2)
         euclidean_distance = torch.cdist(output1, output2)
+        label = 1
+        margin = 2.0
+        loss_contrastive = torch.mean((1 - label) * torch.pow(euclidean_distance, 2) + (label) * torch.pow(torch.clamp(margin - euclidean_distance, min=0.0), 2))
+        print(euclidean_distance)
+        print(loss_contrastive)
         return euclidean_distance
 
 
@@ -186,9 +191,11 @@ def train(path, epoch=100):
 
     # for p in pairs:
     #     train(path + p + "/")
-print("print this")
-for folder in os.listdir("vcdb_path/"):
-    train("vcdb_path/" + folder + "/", epoch=500)
+
+
+# print("print this")
+# for folder in os.listdir("vcdb_path/"):
+#     train("vcdb_path/" + folder + "/", epoch=500)
 
 # train("4_retake/")
 
@@ -203,3 +210,14 @@ for folder in os.listdir("vcdb_path/"):
 # # print(np.shape(iden))
 # loss = lossfunc.forward(x, iden)
 # # print(loss)
+
+
+def evaluate(path):
+    images = img.import_pair(path)
+    model = siameseTransformer(frame_num=2000).to(device)
+    if os.path.isfile(weight_path):
+        model.load_state_dict(torch.load(weight_path))
+    str(model.eval(images[0], images[1]))
+
+
+evaluate("pair/")

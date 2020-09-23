@@ -2,7 +2,7 @@ import cv2
 import os
 
 
-def capture(inpath, outpath, sequence_length=20, interval=30):
+def capture(inpath, outpath, sequence_length=20, interval=1):
     vidcap = cv2.VideoCapture(inpath)
 
     success = True
@@ -31,4 +31,5 @@ def capture(inpath, outpath, sequence_length=20, interval=30):
         count += 1
     return outpath
 
-capture("/home/ubuntu/Desktop/vcd-transformer/New York City 4K - Diamond District - Midtown Manhattan - Driving Downtown - USA-QH7wzoIdHWs.mkv", "/home/ubuntu/Desktop/vcd-transformer/images/")
+
+capture("video.mp4", "images/")
