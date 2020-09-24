@@ -2,7 +2,7 @@ import os
 import shutil
 
 folder_path = "vcdb/"
-new_folder = "vcdb_batch/"
+new_folder = "vcdb_negative/"
 # os.mkdir(new_folder)
 clips = os.listdir(folder_path)
 arr = []

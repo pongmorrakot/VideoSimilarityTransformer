@@ -43,7 +43,7 @@ if torch.cuda.is_available():
     dev = "cuda:0"
 else:
     dev = "cpu"
-
+# dev = "cpu"
 device = torch.device(dev)
 
 
@@ -86,10 +86,16 @@ class siameseTransformer(nn.Module):
     def eval(self, output1, output2):
         # pdist = nn.PairwiseDistance()
         # euclidean_distance = pdist(output1, output2)
-        euclidean_distance = torch.cdist(output1, output2)
+
+        x, y = self.twin_forward(output1, output2)
+        print(x)
+        print(y)
         label = 1
         margin = 2.0
+
+        euclidean_distance = torch.cdist(x, y)
         loss_contrastive = torch.mean((1 - label) * torch.pow(euclidean_distance, 2) + (label) * torch.pow(torch.clamp(margin - euclidean_distance, min=0.0), 2))
+        print("distance")
         print(euclidean_distance)
         print(loss_contrastive)
         return euclidean_distance
@@ -143,7 +149,7 @@ class SimilarityLoss(torch.nn.Module):
 
 
 # batch
-def train(path, epoch=100):
+def train(path, label, epoch=100):
     print("load model")
     model = siameseTransformer(frame_num=2000).to(device)
     if os.path.isfile(weight_path):
@@ -156,7 +162,6 @@ def train(path, epoch=100):
     # arr = img.import_images(resnet, "4_retake/")
     # batch = [[arr, arr]]
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
-    best_loss = float("inf")
 
     for t in range(epoch):
         i = 0
@@ -165,7 +170,7 @@ def train(path, epoch=100):
             s2 = pair[1]
             print("Epoch: " + str(t) + "\tPair: " + str(i))
             x, y = model.twin_forward(s1, s2)
-            loss = lossfunc(x, y, 1)
+            loss = lossfunc(x, y, label)
             # print(x)
             # print(y)
             print(loss)
@@ -181,43 +186,24 @@ def train(path, epoch=100):
         torch.save(model.state_dict(), weight_path)
         print("Weight saved")
 
-
-
-# batch = os.listdir("vcdb/")
-# for b in batch:
-#     path = "vcdb/" + b + "/"
-#     # print(path)
-#     pairs = os.listdir(path)
-
-    # for p in pairs:
-    #     train(path + p + "/")
-
-
 # print("print this")
-# for folder in os.listdir("vcdb_path/"):
-#     train("vcdb_path/" + folder + "/", epoch=500)
-
-# train("4_retake/")
-
-# model = siameseTransformer()
-# model.load_state_dict(torch.load(weight_path))
-# lossfunc = SimilarityLoss()
-# tensor = img.import_images()
-# x, y = model.twin_forward(tensor[0], tensor[0])
-# print(model.eval(x, y))
-# print(np.shape(x))
-# iden = torch.eye(20)
-# # print(np.shape(iden))
-# loss = lossfunc.forward(x, iden)
-# # print(loss)
+pos = os.listdir("vcdb_positive/")
+neg = os.listdir("vcdb_negative/")
+while pos or neg:
+    if pos:
+        train("vcdb_path/" + pos.pop() + "/", label=1)
+    if neg:
+        train("vcdb_path/" + neg.pop() + "/", label=0)
 
 
-def evaluate(path):
-    images = img.import_pair(path)
+def test():
+    print("start")
     model = siameseTransformer(frame_num=2000).to(device)
+    print("load model")
     if os.path.isfile(weight_path):
         model.load_state_dict(torch.load(weight_path))
-    str(model.eval(images[0], images[1]))
-
-
-evaluate("pair/")
+    print("import images")
+    pair = img.import_pair("/home/ubuntu/Desktop/vcd-transformer/vcdb_path/b1/clip48/")
+    print("eval")
+    model.eval(pair[0], pair[1])
+    print("done")
