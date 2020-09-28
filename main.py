@@ -36,6 +36,7 @@ import img
 # def contrastive_loss():
 #     return 0
 
+learning_rate = 0.001
 
 weight_path = "transformer.weight"
 
@@ -83,6 +84,7 @@ class siameseTransformer(nn.Module):
         # torch.cat((ret1, ret2),)
         return ret1, ret2
 
+    # implement how to better quantify the similarity
     def eval(self, output1, output2):
         # pdist = nn.PairwiseDistance()
         # euclidean_distance = pdist(output1, output2)
@@ -149,7 +151,8 @@ class SimilarityLoss(torch.nn.Module):
 
 
 # batch
-def train(path, label, epoch=100):
+# 50 epoch seems to be a good number; 100 epoch is too much
+def train(path, label, epoch=50):
     print("load model")
     model = siameseTransformer(frame_num=2000).to(device)
     if os.path.isfile(weight_path):
@@ -186,14 +189,14 @@ def train(path, label, epoch=100):
         torch.save(model.state_dict(), weight_path)
         print("Weight saved")
 
-# print("print this")
+
 pos = os.listdir("vcdb_positive/")
 neg = os.listdir("vcdb_negative/")
 while pos or neg:
     if pos:
-        train("vcdb_path/" + pos.pop() + "/", label=1)
+        train("vcdb_positive/" + pos.pop() + "/", label=1)
     if neg:
-        train("vcdb_path/" + neg.pop() + "/", label=0)
+        train("vcdb_negative/" + neg.pop() + "/", label=0)
 
 
 def test():
@@ -202,8 +205,13 @@ def test():
     print("load model")
     if os.path.isfile(weight_path):
         model.load_state_dict(torch.load(weight_path))
+    lossfunc = SimilarityLoss().to(device)
     print("import images")
-    pair = img.import_pair("/home/ubuntu/Desktop/vcd-transformer/vcdb_path/b1/clip48/")
+    pair = img.import_pair("/home/ubuntu/Desktop/vcd-transformer/vcdb_positive/b1/clip48/")
     print("eval")
-    model.eval(pair[0], pair[1])
+    x, y = model.twin_forward(pair[0], pair[1])
+    loss = lossfunc(x, y, 0)
+    print(loss)
     print("done")
+
+# test()
