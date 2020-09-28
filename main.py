@@ -85,7 +85,8 @@ class siameseTransformer(nn.Module):
         return ret1, ret2
 
     # implement how to better quantify the similarity
-    def eval(self, output1, output2):
+    # TODO: thres = the score threshold; find the right threshold
+    def eval(self, output1, output2, thres=0.5):
         # pdist = nn.PairwiseDistance()
         # euclidean_distance = pdist(output1, output2)
 
@@ -196,7 +197,7 @@ def train(path, label, epoch=50):
         print("Weight saved")
 
 
-def test():
+def test(path):
     print("start")
     model = siameseTransformer(frame_num=2000).to(device)
     print("load model")
@@ -204,7 +205,7 @@ def test():
         model.load_state_dict(torch.load(weight_path))
     lossfunc = SimilarityLoss().to(device)
     print("import images")
-    pair = img.import_pair("pair/")
+    pair = img.import_pair(path)
     print("eval")
     model.eval(pair[0], pair[1])
 
@@ -217,4 +218,4 @@ def test():
 #         train("vcdb_negative/" + neg.pop() + "/", label=0)
 
 
-test()
+test("vcdb_positive/b0/clip51/")
