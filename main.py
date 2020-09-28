@@ -90,17 +90,24 @@ class siameseTransformer(nn.Module):
         # euclidean_distance = pdist(output1, output2)
 
         x, y = self.twin_forward(output1, output2)
+        print(np.shape(x))
         print(x)
         print(y)
-        label = 1
-        margin = 2.0
+        # label = 1
+        # margin = 2.0
 
         euclidean_distance = torch.cdist(x, y)
-        loss_contrastive = torch.mean((1 - label) * torch.pow(euclidean_distance, 2) + (label) * torch.pow(torch.clamp(margin - euclidean_distance, min=0.0), 2))
-        print("distance")
-        print(euclidean_distance)
-        print(loss_contrastive)
-        return euclidean_distance
+        score = torch.mean(euclidean_distance, 1)
+        print(np.shape(score))
+        print(score)
+        max_score = torch.max(score)
+        print(max_score)
+        return max_score
+        # loss_contrastive = torch.mean((1 - label) * torch.pow(euclidean_distance, 2) + (label) * torch.pow(torch.clamp(margin - euclidean_distance, min=0.0), 2))
+        # print("distance")
+        # print(euclidean_distance)
+        # print(loss_contrastive)
+        # return euclidean_distance
 
 
 # def loss(x, y):
@@ -129,7 +136,6 @@ class siameseTransformer(nn.Module):
 #         # print(i)
 #     # print(arr)
 #     return min(arr)
-
 
 class SimilarityLoss(torch.nn.Module):
     """
@@ -190,15 +196,6 @@ def train(path, label, epoch=50):
         print("Weight saved")
 
 
-pos = os.listdir("vcdb_positive/")
-neg = os.listdir("vcdb_negative/")
-while pos or neg:
-    if pos:
-        train("vcdb_positive/" + pos.pop() + "/", label=1)
-    if neg:
-        train("vcdb_negative/" + neg.pop() + "/", label=0)
-
-
 def test():
     print("start")
     model = siameseTransformer(frame_num=2000).to(device)
@@ -207,11 +204,17 @@ def test():
         model.load_state_dict(torch.load(weight_path))
     lossfunc = SimilarityLoss().to(device)
     print("import images")
-    pair = img.import_pair("/home/ubuntu/Desktop/vcd-transformer/vcdb_positive/b1/clip48/")
+    pair = img.import_pair("pair/")
     print("eval")
-    x, y = model.twin_forward(pair[0], pair[1])
-    loss = lossfunc(x, y, 0)
-    print(loss)
-    print("done")
+    model.eval(pair[0], pair[1])
 
-# test()
+# pos = os.listdir("vcdb_positive/")
+# neg = os.listdir("vcdb_negative/")
+# while pos or neg:
+#     if pos:
+#         train("vcdb_positive/" + pos.pop() + "/", label=1)
+#     if neg:
+#         train("vcdb_negative/" + neg.pop() + "/", label=0)
+
+
+test()
