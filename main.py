@@ -102,8 +102,13 @@ class siameseTransformer(nn.Module):
         print(np.shape(score))
         print(score)
         max_score = torch.max(score)
-        print(max_score)
-        return max_score
+        mean = torch.mean(score)
+        median = torch.median(score)
+        print("Final Score:")
+        print("Max:" + str(max_score))
+        print("Mean:" + str(mean))
+        print("Median:" + str(median))
+        # return max_score
         # loss_contrastive = torch.mean((1 - label) * torch.pow(euclidean_distance, 2) + (label) * torch.pow(torch.clamp(margin - euclidean_distance, min=0.0), 2))
         # print("distance")
         # print(euclidean_distance)
