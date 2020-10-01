@@ -34,7 +34,7 @@ def import_images(model, path):
         # resize image tp 400x225
         # arr = torch.from_numpy(numpy.array(Image.open(path + img).resize((400, 225))))
         input_image = Image.open(path + img)
-        input_tensor = preprocess(input_image).unsqueeze(0).to(device)
+        input_tensor = preprocess(input_image).to(device)
         # arr = model(input_tensor)
         with torch.no_grad():
             arr = model(input_tensor)
