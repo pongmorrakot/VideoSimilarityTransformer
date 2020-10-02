@@ -1,3 +1,5 @@
+import os
+
 import torch
 import math
 from torch import nn
@@ -57,6 +59,7 @@ class Transformer(nn.Module):
         encoder_layer = nn.TransformerEncoderLayer(d_model=input_size, nhead=attn_head, dropout=dropout)
         self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=6)
         self.decoder = nn.Linear(input_size, class_num)
+        self.decoder2 = nn.Linear(seq_len, 1)
         # self.embedding = nn.Embedding(class_num, input_size)
         self.position = PositionalEncoder(input_size)
 
@@ -64,6 +67,8 @@ class Transformer(nn.Module):
         x = self.position(input)
         x = self.encoder(x)
         x = self.decoder(x)
+        x = torch.transpose(x, 1, 2)
+        x = self.decoder2(x)
         return x
 
 
@@ -78,6 +83,10 @@ def read_result(arr, label):
     return label[i], arr[i]
 
 
+def read_label(path):
+    return 0
+
+
 input_path = "pair/clip11/"
 
 frame_num = 1000
@@ -89,8 +98,29 @@ dropout = 0.2 # the dropout value
 resnet = models.resnet18(pretrained=True)
 model = Transformer(input_size=frame_num, seq_len=vid_len, class_num=class_num, attn_head=attn_head, dropout=dropout)
 
-
 x = img.import_images2(resnet, input_path)
 print(np.shape(x))
 x = model(x)
 print(np.shape(x))
+print(x)
+
+
+def train(input_path, epoch=100):
+    resnet = models.resnet18(pretrained=True)
+    model = Transformer(input_size=frame_num, seq_len=vid_len, class_num=class_num, attn_head=attn_head, dropout=dropout)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+    for e in range(epoch):
+        # import data
+        folders = os.listdir(input_path)
+        for folder in folders:
+            folder_path = input_path + "/" + folder + "/"
+            optimizer.zero_grad()
+            x = img.import_images2(resnet, folder_path)
+            target = read_label(folder_path)
+            x = model(x)
+            print(x)
+
+            loss = criterion(x, target)
+            loss.backward()
+            optimizer.step()
