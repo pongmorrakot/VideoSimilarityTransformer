@@ -10,31 +10,7 @@ import os
 
 import img
 
-# the input matrix would be the size of img_size x num_frame
-
-# img_size = 2400
-# num_frame = 30
-# query = Input x query_weight
-# key = Input x key_weight
-# value = input x value_weight
-# self-attention = softmax((q x transpose(k))/sqrt(dk)) * v
-# dk = dimension of k(key)
-
-# TODO:
-# 1. functions to turn video into matrix
-# 2. siamese model
-
-
-# class SiameseTransformer(nn.Module):
-#     def __init__(self):
-#         return 0
-#
-#     def forward(self):
-#         return 0
-#
-#
-# def contrastive_loss():
-#     return 0
+#TODO: normalize video of different length 
 
 learning_rate = 0.001
 
@@ -46,6 +22,11 @@ else:
     dev = "cpu"
 # dev = "cpu"
 device = torch.device(dev)
+
+
+def draw_heatmap(arr):
+    plt.imshow(arr, cmap='Spectral', interpolation='nearest')
+    plt.show()
 
 
 class siameseTransformer(nn.Module):
@@ -85,29 +66,31 @@ class siameseTransformer(nn.Module):
         return ret1, ret2
 
     # implement how to better quantify the similarity
-    def eval(self, output1, output2):
+    # TODO: thres = the score threshold; find the right threshold
+    def eval(self, output1, output2, thres=0.5):
         # pdist = nn.PairwiseDistance()
         # euclidean_distance = pdist(output1, output2)
 
         x, y = self.twin_forward(output1, output2)
         print(np.shape(x))
-        print(x)
-        print(y)
-        # label = 1
-        # margin = 2.0
+        # draw_heatmap(x.cpu().detach().numpy())
+        # draw_heatmap(y.cpu().detach().numpy())
 
-        euclidean_distance = torch.cdist(x, y)
-        score = torch.mean(euclidean_distance, 1)
+        # score = pdist(x, y)
+        # score = torch.cdist(x, y)
+        # score = torch.mean(score, 1)
+        score = torch.sigmoid(torch.abs(x - y))
         print(np.shape(score))
         print(score)
+        # draw_heatmap(score.cpu().detach().numpy())
         max_score = torch.max(score)
-        print(max_score)
-        return max_score
-        # loss_contrastive = torch.mean((1 - label) * torch.pow(euclidean_distance, 2) + (label) * torch.pow(torch.clamp(margin - euclidean_distance, min=0.0), 2))
-        # print("distance")
-        # print(euclidean_distance)
-        # print(loss_contrastive)
-        # return euclidean_distance
+        mean = torch.mean(score)
+        median = torch.median(score)
+        print("Final Score:")
+        print("Max:" + str(max_score))
+        print("Mean:" + str(mean))
+        print("Median:" + str(median))
+        
 
 
 # def loss(x, y):
@@ -196,7 +179,7 @@ def train(path, label, epoch=50):
         print("Weight saved")
 
 
-def test():
+def test(path):
     print("start")
     model = siameseTransformer(frame_num=2000).to(device)
     print("load model")
@@ -204,7 +187,7 @@ def test():
         model.load_state_dict(torch.load(weight_path))
     lossfunc = SimilarityLoss().to(device)
     print("import images")
-    pair = img.import_pair("pair/")
+    pair = img.import_pair(path)
     print("eval")
     model.eval(pair[0], pair[1])
 
@@ -217,4 +200,7 @@ def test():
 #         train("vcdb_negative/" + neg.pop() + "/", label=0)
 
 
-test()
+test("vcdb_positive/b0/clip51/")
+# test("vcdb_positive/b11/clip496/")
+test("vcdb_negative/batch0/clip276/")
+# test("vcdb_negative/batch50/clip615/")
