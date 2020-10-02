@@ -22,6 +22,20 @@ preprocess = transforms.Compose([
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
+def import_images2(model, path):
+    images = os.listdir(path)
+    length = len(images)
+    arr = torch.zeros((len(images), 3, 400, 225)).to(device)
+    i = 0
+    for img in images:
+        input_image = Image.open(path + img)
+        input_tensor = preprocess(input_image).to(device)
+        arr[i] = input_tensor
+        i += 1
+    with torch.no_grad():
+        arr = model(arr)
+    return arr
+
 
 def import_images(model, path):
     # print(device)

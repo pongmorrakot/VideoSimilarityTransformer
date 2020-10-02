@@ -2,7 +2,24 @@ import torch
 import math
 from torch import nn
 import torchvision
+import torchvision.models as models
 from torch.autograd import Variable
+import torch.nn.functional as F
+import numpy as np
+import img
+
+# input = w x h x 3 x seq_len
+# CNN => ResNet,VCG, etc.
+#       shape = feature_num x seq_len
+# Transformer
+# output = 1 x class_num
+
+if torch.cuda.is_available():
+    dev = "cuda:0"
+else:
+    dev = "cpu"
+dev = "cpu"
+device = torch.device(dev)
 
 
 class PositionalEncoder(nn.Module):
@@ -24,15 +41,56 @@ class PositionalEncoder(nn.Module):
         self.register_buffer('pe', pe)
 
     def forward(self, x):
+        # print(np.shape(self.pe))
         # make embeddings relatively larger
         x = x * math.sqrt(self.d_model)
         # add constant to embedding
-        seq_len = x.size(1)
-        x = x + Variable(self.pe[:, :seq_len], requires_grad=False).cuda()
+        seq_len = x.size(0)
+        # print(np.shape(self.pe[:, :seq_len]))
+        x = x + Variable(self.pe[:, :seq_len], requires_grad=False)
         return x
 
 
-# input = w x h x 3 x seq_len
-# CNN => ResNet,VCG, etc.
-# Transformer
-# output = 1 x class_num
+class Transformer(nn.Module):
+    def __init__(self, input_size, seq_len, class_num, attn_head, dropout):
+        super().__init__()
+        encoder_layer = nn.TransformerEncoderLayer(d_model=input_size, nhead=attn_head, dropout=dropout)
+        self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=6)
+        self.decoder = nn.Linear(input_size, class_num)
+        # self.embedding = nn.Embedding(class_num, input_size)
+        self.position = PositionalEncoder(input_size)
+
+    def forward(self, input):
+        x = self.position(input)
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x
+
+
+# input:
+# arr = a vector with length equal to the number of classes
+# label = label correspond to each class
+def read_result(arr, label):
+    curmax = 0
+    for i in range(len(arr)):
+        if arr[i] > arr[curmax]:
+            curmax = i
+    return label[i], arr[i]
+
+
+input_path = "pair/clip11/"
+
+frame_num = 1000
+vid_len = 20
+class_num = 101
+attn_head = 8
+dropout = 0.2 # the dropout value
+
+resnet = models.resnet18(pretrained=True)
+model = Transformer(input_size=frame_num, seq_len=vid_len, class_num=class_num, attn_head=attn_head, dropout=dropout)
+
+
+x = img.import_images2(resnet, input_path)
+print(np.shape(x))
+x = model(x)
+print(np.shape(x))
