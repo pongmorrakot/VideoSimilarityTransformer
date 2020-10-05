@@ -82,11 +82,14 @@ def read_result(arr, label):
             curmax = i
     return label[i], arr[i]
 
+def read_annotation(input_path, batch_size):
+    pass
 
 def read_label(path):
     return 0
 
 
+weight_path = "classifier.weight"
 input_path = "pair/clip11/"
 
 frame_num = 1000
@@ -95,32 +98,36 @@ class_num = 101
 attn_head = 8
 dropout = 0.2 # the dropout value
 
-resnet = models.resnet18(pretrained=True)
-model = Transformer(input_size=frame_num, seq_len=vid_len, class_num=class_num, attn_head=attn_head, dropout=dropout)
-
-x = img.import_images2(resnet, input_path)
-print(np.shape(x))
-x = model(x)
-print(np.shape(x))
-print(x)
+# resnet = models.resnet18(pretrained=True)
+# model = Transformer(input_size=frame_num, seq_len=vid_len, class_num=class_num, attn_head=attn_head, dropout=dropout)
+#
+# x = img.import_images2(resnet, input_path)
+# print(np.shape(x))
+# x = model(x)
+# print(np.shape(x))
+# print(x)
 
 
 def train(input_path, epoch=100):
     resnet = models.resnet18(pretrained=True)
     model = Transformer(input_size=frame_num, seq_len=vid_len, class_num=class_num, attn_head=attn_head, dropout=dropout)
+    if os.path.isfile(weight_path):
+        model.load_state_dict(torch.load(weight_path))
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+    data_list = read_annotation(input_path)
     for e in range(epoch):
         # import data
-        folders = os.listdir(input_path)
-        for folder in folders:
-            folder_path = input_path + "/" + folder + "/"
-            optimizer.zero_grad()
-            x = img.import_images2(resnet, folder_path)
-            target = read_label(folder_path)
-            x = model(x)
-            print(x)
+        for batch in data_list:
+            for folder in batch:
+                folder_path = input_path + "/" + folder + "/"
+                optimizer.zero_grad()
+                x = img.import_images2(resnet, folder_path)
+                target = read_label(folder_path)
+                x = model(x)
 
-            loss = criterion(x, target)
-            loss.backward()
-            optimizer.step()
+                loss = criterion(x, target)
+                print(str(e) + "/" + str(epoch) + "\t" + folder_path + "\t" + str(loss))
+                loss.backward()
+                optimizer.step()
+            torch.save(model.state_dict(), weight_path)
