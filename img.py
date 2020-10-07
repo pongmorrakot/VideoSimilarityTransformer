@@ -1,6 +1,6 @@
 import math
 import os
-import numpy
+import numpy as np
 import torch
 from PIL import Image
 from torch import nn
@@ -17,19 +17,21 @@ else:
 device = torch.device(dev)
 
 preprocess = transforms.Compose([
-    transforms.Resize((400, 225)),
+    transforms.Resize((224, 224)),
     transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
 ])
 
 def import_images2(model, path):
     images = os.listdir(path)
     length = len(images)
-    arr = torch.zeros((len(images), 3, 400, 225)).to(device)
+    arr = torch.zeros((100, 3, 224, 224)).to(device)
     i = 0
     for img in images:
         input_image = Image.open(path + img)
         input_tensor = preprocess(input_image).to(device)
+        # print(np.shape(input_tensor))
+        # print(input_tensor)
         arr[i] = input_tensor
         i += 1
     with torch.no_grad():
