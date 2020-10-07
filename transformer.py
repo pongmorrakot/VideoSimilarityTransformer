@@ -1,5 +1,5 @@
 import os
-
+import random
 import torch
 import math
 from torch import nn
@@ -20,7 +20,7 @@ if torch.cuda.is_available():
     dev = "cuda:0"
 else:
     dev = "cpu"
-dev = "cpu"
+# dev = "cpu"
 device = torch.device(dev)
 
 
@@ -48,6 +48,7 @@ class PositionalEncoder(nn.Module):
         x = x * math.sqrt(self.d_model)
         # add constant to embedding
         seq_len = x.size(0)
+        # print(np.shape(x))
         # print(np.shape(self.pe[:, :seq_len]))
         x = x + Variable(self.pe[:, :seq_len], requires_grad=False)
         return x
@@ -82,21 +83,25 @@ def read_result(arr, label):
             curmax = i
     return label[i], arr[i]
 
-def read_annotation(input_path, batch_size):
-    pass
+def read_annotation(input_path):
+    return open(input_path, "r").readlines()
 
-def read_label(path):
-    return 0
+def read_label(label, class_num):
+    t = torch.zeros((1,class_num))
+    t[0][label-1] = 1.0
+    print(np.shape(t))
+    return t
 
 
 weight_path = "classifier.weight"
-input_path = "pair/clip11/"
+input_path = "train.txt"
 
-frame_num = 1000
-vid_len = 20
+feature_num = 1000
+vid_len = 100
 class_num = 101
-attn_head = 8
+attn_head = 4
 dropout = 0.2 # the dropout value
+learning_rate = 0.005
 
 # resnet = models.resnet18(pretrained=True)
 # model = Transformer(input_size=frame_num, seq_len=vid_len, class_num=class_num, attn_head=attn_head, dropout=dropout)
@@ -108,26 +113,37 @@ dropout = 0.2 # the dropout value
 # print(x)
 
 
-def train(input_path, epoch=100):
-    resnet = models.resnet18(pretrained=True)
-    model = Transformer(input_size=frame_num, seq_len=vid_len, class_num=class_num, attn_head=attn_head, dropout=dropout)
+def train(input_path, epoch=50):
+    print("Load Model")
+    print("Device:\t" + str(device))
+    resnet = models.resnet18(pretrained=True).to(device)
+    model = Transformer(input_size=feature_num, seq_len=vid_len, class_num=class_num, attn_head=attn_head, dropout=dropout).to(device)
     if os.path.isfile(weight_path):
         model.load_state_dict(torch.load(weight_path))
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+    print("Initialize Training Function")
+    criterion = nn.CrossEntropyLoss().to(device)
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
     data_list = read_annotation(input_path)
+    print("Training Start")
+    m = nn.Softmax(dim=0)
     for e in range(epoch):
-        # import data
-        for batch in data_list:
-            for folder in batch:
-                folder_path = input_path + "/" + folder + "/"
-                optimizer.zero_grad()
-                x = img.import_images2(resnet, folder_path)
-                target = read_label(folder_path)
-                x = model(x)
+        random.shuffle(data_list)
+        for b in range(len(data_list)):
+            label, folder_path = data_list[b].split()
+            x = img.import_images2(resnet, folder_path).to(device)
+            optimizer.zero_grad()
+            # print(np.shape(x))
+            # target = read_label(int(label), class_num).to(device)
+            target = torch.tensor([int(label)-1]).to(device)
+            x = model(x).squeeze(2)
+            # print("output: " + str(np.shape(x)))
+            # print(target)
+            loss = criterion(x, target)
+            print("Epoch: " + str(e) + "/" + str(epoch) + "\t" + str(b) + "/" + str(len(data_list)) + "\t" + folder_path[len(folder_path)-30:] + "\t" + str(loss))
+            loss.backward()
+            optimizer.step()
+        torch.save(model.state_dict(), weight_path)
+        print("Model Saved")
 
-                loss = criterion(x, target)
-                print(str(e) + "/" + str(epoch) + "\t" + folder_path + "\t" + str(loss))
-                loss.backward()
-                optimizer.step()
-            torch.save(model.state_dict(), weight_path)
+
+train(input_path)
