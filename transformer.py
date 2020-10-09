@@ -90,17 +90,19 @@ def read_annotation(input_path):
 # compare the output of the network with the label
 # TODO: implement this using eval()
 def read_label(label, output):
-    label = label - 1
-    class_index, class_name, confidence = eval(output)
+    label = int(label) - 1
+    class_index, confidence = eval(output)
+    print(str(label) + "\t" + str(class_index) + ":" + str(confidence))
     if label == class_index:
         return True
     else:
         return False
 
 
-def eval(class_index, output):
+def eval(output):
+    output = output.cpu().detach().numpy()
     max_index = np.argmax(output)
-    return max_index, class_index[max_index], output[max_index]
+    return max_index, output[max_index]
 
 
 weight_path = "classifier.weight"
@@ -165,4 +167,19 @@ def test(input_path):
     if os.path.isfile(weight_path):
         model.load_state_dict(torch.load(weight_path))
     print("Initialize Test Function")
-    
+    data_list = read_annotation(input_path)
+    random.shuffle(data_list)
+    correct = 0
+    total = 0
+    for entry in data_list:
+        label, folder_path = entry.split()
+        print(folder_path)
+        x = img.import_images2(resnet, folder_path).to(device)
+        x = model(x).squeeze()
+        if read_label(label, x):
+            correct += 1
+        total += 1
+        print(str(correct) + "/" + str(total))
+    print(str(correct) + "/" + str(total))
+
+test("test.txt")
