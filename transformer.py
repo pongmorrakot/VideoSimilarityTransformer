@@ -156,4 +156,13 @@ def train(input_path, epoch=50):
         print("Model Saved")
 
 
-train(input_path)
+# train(input_path)
+def test(input_path):
+    print("Load Model")
+    print("Device:\t" + str(device))
+    resnet = models.resnet18(pretrained=True).to(device)
+    model = Transformer(input_size=feature_num, seq_len=vid_len, class_num=class_num, attn_head=attn_head, dropout=dropout).to(device)
+    if os.path.isfile(weight_path):
+        model.load_state_dict(torch.load(weight_path))
+    print("Initialize Test Function")
+    
