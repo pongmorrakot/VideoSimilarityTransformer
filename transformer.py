@@ -86,22 +86,32 @@ def read_result(arr, label):
 def read_annotation(input_path):
     return open(input_path, "r").readlines()
 
-def read_label(label, class_num):
-    t = torch.zeros((1,class_num))
-    t[0][label-1] = 1.0
-    print(np.shape(t))
-    return t
+# used for testing
+# compare the output of the network with the label
+# TODO: implement this using eval()
+def read_label(label, output):
+    label = label - 1
+    class_index, class_name, confidence = eval(output)
+    if label == class_index:
+        return True
+    else:
+        return False
+
+
+def eval(class_index, output):
+    max_index = np.argmax(output)
+    return max_index, class_index[max_index], output[max_index]
 
 
 weight_path = "classifier.weight"
 input_path = "train.txt"
 
 feature_num = 1000
-vid_len = 100
+vid_len = 200
 class_num = 101
 attn_head = 4
 dropout = 0.2 # the dropout value
-learning_rate = 0.005
+learning_rate = 0.001
 
 # resnet = models.resnet18(pretrained=True)
 # model = Transformer(input_size=frame_num, seq_len=vid_len, class_num=class_num, attn_head=attn_head, dropout=dropout)
