@@ -13,3 +13,5 @@ Description:
 TODO:
 - implement a proper train/test function
 - test out video similarity task to see if it can yield similar level of performance
+- see if the use of feature extractor can be eliminated
+- etc.
