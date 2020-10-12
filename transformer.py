@@ -8,7 +8,11 @@ import torchvision.models as models
 from torch.autograd import Variable
 import torch.nn.functional as F
 import numpy as np
+import statistics
+
+
 import img
+from train_prep import prep
 
 # input = w x h x 3 x seq_len
 # CNN => ResNet,VCG, etc.
@@ -90,7 +94,7 @@ def read_annotation(input_path):
 # compare the output of the network with the label
 # TODO: implement this using eval()
 def read_label(label, output):
-    label = int(label) - 1
+    label = int(label)
     class_index, confidence = eval(output)
     print(str(label) + "\t" + str(class_index) + ":" + str(confidence))
     if label == class_index:
@@ -101,13 +105,11 @@ def read_label(label, output):
 
 def eval(output):
     output = output.cpu().detach().numpy()
-    max_index = np.argmax(output)
+    max_index = np.argmax(output) + 1 # +1 as the class index of UCF101 dataset starts at 1, and not 0
     return max_index, output[max_index]
 
 
 weight_path = "classifier.weight"
-input_path = "train.txt"
-
 feature_num = 1000
 vid_len = 200
 class_num = 101
@@ -125,7 +127,7 @@ learning_rate = 0.001
 # print(x)
 
 
-def train(input_path, epoch=50):
+def train(input_path, epoch=30):
     print("Load Model")
     print("Device:\t" + str(device))
     resnet = models.resnet18(pretrained=True).to(device)
@@ -158,7 +160,14 @@ def train(input_path, epoch=50):
         print("Model Saved")
 
 
-# train(input_path)
+# TODO: split the training set into k sets
+# pick a set as the test set, the rest as train set
+# for each epoch: if the loss on the test set starts to increase, stop training
+def kfold_train(k, input_path):
+    pass
+
+
+
 def test(input_path):
     print("Load Model")
     print("Device:\t" + str(device))
@@ -168,7 +177,7 @@ def test(input_path):
         model.load_state_dict(torch.load(weight_path))
     print("Initialize Test Function")
     data_list = read_annotation(input_path)
-    random.shuffle(data_list)
+    # random.shuffle(data_list)
     correct = 0
     total = 0
     for entry in data_list:
@@ -180,6 +189,25 @@ def test(input_path):
             correct += 1
         total += 1
         print(str(correct) + "/" + str(total))
-    print(str(correct) + "/" + str(total))
+    return correct/total
 
-test("test.txt")
+
+# TODO: use 3-fold accuracy (Top-1)
+# the average 3-fold cross validation accuracy
+def x_validate(trainlist, testlist, epoch=30):
+    print("Cross Validation")
+    if os.path.isfile(weight_path):
+        os.remove(weight_path)
+    print("Weight deleted")
+    score = []
+    print("Data Preparation")
+    prep(trainlist, "train.txt")
+    prep(testlist, "test.txt")
+    print("Training")
+    train("train.txt", epoch)
+    print("Testing")
+    score.append(test("test.txt"))
+    print(score)
+    print(statistics.mean(score))
+
+x_validate("ucfTrainTestlist/trainlist01.txt", "ucfTrainTestlist/testlist01.txt")
