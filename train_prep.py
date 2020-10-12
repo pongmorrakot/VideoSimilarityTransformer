@@ -1,7 +1,7 @@
 import os
 
 path = "/home/ubuntu/Desktop/UCF_IMG/"
-label_path = "/home/ubuntu/Desktop/UCF101-Class Index.txt"
+label_path = "UCF101-Class Index.txt"
 
 def get_label(folder_name):
 	return 0
