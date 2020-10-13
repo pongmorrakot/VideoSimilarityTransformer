@@ -217,7 +217,7 @@ def kfold_train(k, input_path):
                 # print(target)
                 loss = criterion(x, target)
                 train_loss += loss
-                # print("Epoch: " + str(e) + "\t" + str(b) + "/" + str(len(trainlist)) + "\t" + folder_path[len(folder_path)-30:] + "\t" + str(loss))
+                print("Training\t" +str(b) + "/" + str(len(trainlist)) + "\t" + folder_path[len(folder_path)-30:] + "\t" + str(loss))
                 loss.backward()
                 optimizer.step()
 
@@ -229,7 +229,10 @@ def kfold_train(k, input_path):
                     x = img.import_images2(resnet, folder_path).to(device)
                     target = torch.tensor([int(label)-1]).to(device)
                     x = model(x).squeeze(2)
-                    cur_loss += criterion(x, target)
+                    test_loss = criterion(x, target)
+                    cur_loss += test_loss
+                    print("Testing\t" + str(b) + "/" + str(len(testlist)) + "\t" + folder_path[len(folder_path)-30:] + "\t" + str(test_loss))
+
 
             print("Fold: " + str(i) + "\t" + "Epoch: " + str(e) + "\t" + str(train_loss) + "Test Loss:\t" + str(cur_loss))
 
