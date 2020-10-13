@@ -72,8 +72,11 @@ class Transformer(nn.Module):
         x = self.position(input)
         x = self.encoder(x)
         x = self.decoder(x)
+        # print(np.shape(x))
         x = torch.transpose(x, 1, 2)
+        # print(np.shape(x))
         x = self.decoder2(x)
+        # print(np.shape(x))
         return x
 
 
@@ -177,7 +180,7 @@ def kfold_train(k, input_path):
 
     print("Process Data")
     data_list = read_annotation(input_path)
-    fold_size = len(data_list) / k
+    fold_size = int(len(data_list) / k)
     folds = []
     random.shuffle(data_list)
     # create fold
@@ -198,10 +201,10 @@ def kfold_train(k, input_path):
                 trainlist += folds[j]
         random.shuffle(trainlist)
         done = False
-        prev_loss = math.inf
+        prev_loss = torch.as_tensor([math.inf]).to(device)
         e = 0
         while not done:
-            train_loss = torch.zeros(1)
+            train_loss = torch.zeros(1).to(device)
             for b in range(len(trainlist)):
                 label, folder_path = trainlist[b].split()
                 x = img.import_images2(resnet, folder_path).to(device)
@@ -219,7 +222,7 @@ def kfold_train(k, input_path):
                 optimizer.step()
 
             # validation
-            cur_loss = torch.zeros(1)
+            cur_loss = torch.zeros(1).to(device)
             with torch.no_grad():
                 for b in range(len(testlist)):
                     label, folder_path = testlist[b].split()
@@ -278,7 +281,8 @@ def x_validate(trainlist, testlist, epoch=30):
     prep(trainlist, "train.txt")
     prep(testlist, "test.txt")
     print("Training")
-    train("train.txt", epoch)
+    # train("train.txt", epoch)
+    kfold_train(5, "train.txt")
     print("Testing")
     score.append(test("test.txt"))
     print(score)

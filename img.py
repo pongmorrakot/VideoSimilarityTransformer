@@ -25,7 +25,7 @@ preprocess = transforms.Compose([
 def import_images2(model, path):
     images = os.listdir(path)
     length = len(images)
-    arr = torch.zeros((100, 3, 224, 224)).to(device)
+    arr = torch.zeros((200, 3, 224, 224)).to(device)
     i = 0
     for img in images:
         input_image = Image.open(path + img)

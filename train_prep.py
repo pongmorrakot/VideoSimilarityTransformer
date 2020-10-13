@@ -42,5 +42,5 @@ def prep(inpath, outpath):
 		table[name] = num
 
 	for entry in list:
-		print(str(table[entry.split("/")[0]]) + " " + abs_path + entry.split()[0] + "\n")
-		w2.write(str(table[entry.split("/")[0]]) + " " + abs_path + entry.split()[0] + "\n")
+		# print(str(table[entry.split("/")[0]]) + " " + abs_path + entry.split()[0] + "\n")
+		w2.write(str(table[entry.split("/")[0]]) + " " + abs_path + entry.split()[0] + "/\n")
