@@ -9,7 +9,7 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 import numpy as np
 import statistics
-
+from copy import deepcopy
 
 import img
 from train_prep import prep
@@ -104,7 +104,8 @@ def read_label(label, output):
 
 
 def eval(output):
-    output = output.cpu().detach().numpy()
+    sc = nn.Softmax(dim=0)
+    output = sc(output).cpu().detach().numpy()
     max_index = np.argmax(output) + 1 # +1 as the class index of UCF101 dataset starts at 1, and not 0
     return max_index, output[max_index]
 
@@ -164,7 +165,80 @@ def train(input_path, epoch=30):
 # pick a set as the test set, the rest as train set
 # for each epoch: if the loss on the test set starts to increase, stop training
 def kfold_train(k, input_path):
-    pass
+    print("Load Model")
+    print("Device:\t" + str(device))
+    resnet = models.resnet18(pretrained=True).to(device)
+    model = Transformer(input_size=feature_num, seq_len=vid_len, class_num=class_num, attn_head=attn_head, dropout=dropout).to(device)
+    if os.path.isfile(weight_path):
+        model.load_state_dict(torch.load(weight_path))
+    print("Initialize Training Function")
+    criterion = nn.CrossEntropyLoss().to(device)
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+
+    print("Process Data")
+    data_list = read_annotation(input_path)
+    fold_size = len(data_list) / k
+    folds = []
+    random.shuffle(data_list)
+    # create fold
+    for i in range(k):
+        fold = []
+        for j in range(fold_size):
+            if data_list:
+                fold.append(data_list.pop())
+        folds.append(fold)
+    # train
+    print("Start Training")
+    for i in range(k):
+        # pick test/train set
+        testlist = folds[i]
+        trainlist = []
+        for j in range(k):
+            if j != i:
+                trainlist += folds[j]
+        random.shuffle(trainlist)
+        done = False
+        prev_loss = math.inf
+        e = 0
+        while not done:
+            train_loss = torch.zeros(1)
+            for b in range(len(trainlist)):
+                label, folder_path = trainlist[b].split()
+                x = img.import_images2(resnet, folder_path).to(device)
+                optimizer.zero_grad()
+                # print(np.shape(x))
+                # target = read_label(int(label), class_num).to(device)
+                target = torch.tensor([int(label)-1]).to(device)
+                x = model(x).squeeze(2)
+                # print("output: " + str(np.shape(x)))
+                # print(target)
+                loss = criterion(x, target)
+                train_loss += loss
+                # print("Epoch: " + str(e) + "\t" + str(b) + "/" + str(len(trainlist)) + "\t" + folder_path[len(folder_path)-30:] + "\t" + str(loss))
+                loss.backward()
+                optimizer.step()
+
+            # validation
+            cur_loss = torch.zeros(1)
+            with torch.no_grad():
+                for b in range(len(testlist)):
+                    label, folder_path = testlist[b].split()
+                    x = img.import_images2(resnet, folder_path).to(device)
+                    target = torch.tensor([int(label)-1]).to(device)
+                    x = model(x).squeeze(2)
+                    cur_loss += criterion(x, target)
+
+            print("Fold: " + str(i) + "\t" + "Epoch: " + str(e) + "\t" + str(train_loss) + "Test Loss:\t" + str(cur_loss))
+
+            if prev_loss < cur_loss:
+                done = True
+            else:
+                torch.save(model.state_dict(), weight_path)
+            e += 1
+
+
+
+
 
 
 
