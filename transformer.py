@@ -109,8 +109,8 @@ def read_label(label, output):
 def eval(output):
     sc = nn.Softmax(dim=0)
     output = sc(output).cpu().detach().numpy()
-    max_index = np.argmax(output) + 1 # +1 as the class index of UCF101 dataset starts at 1, and not 0
-    return max_index, output[max_index]
+    max_index = np.argmax(output)
+    return max_index + 1, output[max_index] # +1 as the class index of UCF101 dataset starts at 1, and not 0
 
 
 weight_path = "classifier.weight"
@@ -168,6 +168,7 @@ def train(input_path, epoch=30):
 # pick a set as the test set, the rest as train set
 # for each epoch: if the loss on the test set starts to increase, stop training
 def kfold_train(k, input_path):
+    log = open("training_log.txt", "a+")
     print("Load Model")
     print("Device:\t" + str(device))
     resnet = models.resnet18(pretrained=True).to(device)
@@ -234,18 +235,15 @@ def kfold_train(k, input_path):
                     print("Testing\t" + str(b) + "/" + str(len(testlist)) + "\t" + folder_path[len(folder_path)-30:] + "\t" + str(test_loss))
 
 
-            print("Fold: " + str(i) + "\t" + "Epoch: " + str(e) + "\t" + str(train_loss) + "Test Loss:\t" + str(cur_loss))
+            print("Fold: " + str(i) + "\t" + "Epoch: " + str(e) + "\t" + str(prev_loss) + " Test Loss:\t" + str(cur_loss))
+            log.write("Fold: " + str(i) + "\t" + "Epoch: " + str(e) + "\t" + str(prev_loss) + " Test Loss:\t" + str(cur_loss))
 
             if prev_loss < cur_loss:
                 done = True
             else:
+                cur_loss = prev_loss
                 torch.save(model.state_dict(), weight_path)
             e += 1
-
-
-
-
-
 
 
 def test(input_path):
@@ -276,19 +274,30 @@ def test(input_path):
 # the average 3-fold cross validation accuracy
 def x_validate(trainlist, testlist, epoch=30):
     print("Cross Validation")
-    if os.path.isfile(weight_path):
-        os.remove(weight_path)
-    print("Weight deleted")
     score = []
-    print("Data Preparation")
-    prep(trainlist, "train.txt")
-    prep(testlist, "test.txt")
-    print("Training")
-    # train("train.txt", epoch)
-    kfold_train(5, "train.txt")
-    print("Testing")
-    score.append(test("test.txt"))
+    for i in range(len(trainlist)):
+        rec = open("result.txt", "a+")
+        if os.path.isfile(weight_path):
+            os.remove(weight_path)
+        print("Weight deleted")
+        print("Data Preparation")
+        prep(trainlist[i], "train.txt")
+        prep(testlist[i], "test.txt")
+        print("Training")
+        # train("train.txt", epoch)
+        kfold_train(5, "train.txt")
+        print("Testing")
+        s = test("test.txt")
+        rec.write(trainlist[i] + "\t" + testlist[i] + "\t" + s)
+        rec.close()
+        score.append(s)
     print(score)
     print(statistics.mean(score))
+    rec.write(statistics.mean(score))
 
-x_validate("ucfTrainTestlist/trainlist01.txt", "ucfTrainTestlist/testlist01.txt")
+list1 = ["ucfTrainTestlist/trainlist01.txt","ucfTrainTestlist/trainlist02.txt","ucfTrainTestlist/trainlist03.txt"]
+list2 = ["ucfTrainTestlist/testlist01.txt","ucfTrainTestlist/testlist02.txt","ucfTrainTestlist/testlist03.txt"]
+
+x_validate(list1, list2)
+
+# test("test.txt")
