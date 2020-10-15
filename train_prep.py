@@ -31,6 +31,7 @@ label_path = "UCF101-Class Index.txt"
 
 abs_path = "/home/ubuntu/Desktop/UCF_IMG/"
 
+
 def prep(inpath, outpath):
 	f = open(label_path, "r")
 	list = open(inpath, "r").readlines()

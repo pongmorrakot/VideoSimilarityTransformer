@@ -1,6 +1,10 @@
 # VideoSimilarityTransformer
 Note: Still need a lot of works
 
+Instruction:
+ 1. use extract_frame.py to extract frame; change the input path to directory of the dataset; the script should go over all subfolders and extract frames from each video. interval can be changed to extract more or less frame (e.g.interval=12 means grab a frame for every 12 frames of video).
+ 2. run transformer.py; change input path to the directory where extracted frames are located.
+
 Progress:
 - Action recognition seems to work fine with 68.5% top-one performance on UCF101 dataset
 
