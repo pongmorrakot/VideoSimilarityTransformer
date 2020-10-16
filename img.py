@@ -22,8 +22,10 @@ preprocess = transforms.Compose([
     transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
 ])
 
+
 def import_images2(model, path):
     images = os.listdir(path)
+    images.sort(key = lambda x:x.lower())
     length = len(images)
     arr = torch.zeros((200, 3, 224, 224)).to(device)
     i = 0

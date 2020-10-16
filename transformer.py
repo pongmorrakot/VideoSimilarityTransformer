@@ -168,7 +168,6 @@ def train(input_path, epoch=30):
 # pick a set as the test set, the rest as train set
 # for each epoch: if the loss on the test set starts to increase, stop training
 def kfold_train(k, input_path):
-    log = open("training_log.txt", "a+")
     print("Load Model")
     print("Device:\t" + str(device))
     resnet = models.resnet18(pretrained=True).to(device)
@@ -193,6 +192,9 @@ def kfold_train(k, input_path):
         folds.append(fold)
     # train
     print("Start Training")
+    tlog = open("training_log.txt", "a+")
+    tlog.write("Start Training")
+    tlog.close()
     for i in range(k):
         # pick test/train set
         testlist = folds[i]
@@ -236,12 +238,14 @@ def kfold_train(k, input_path):
 
 
             print("Fold: " + str(i) + "\t" + "Epoch: " + str(e) + "\t" + str(prev_loss) + " Test Loss:\t" + str(cur_loss))
-            log.write("Fold: " + str(i) + "\t" + "Epoch: " + str(e) + "\t" + str(prev_loss) + " Test Loss:\t" + str(cur_loss))
+            tlog = open("training_log.txt", "a+")
+            tlog.write("Fold: " + str(i) + "\t" + "Epoch: " + str(e) + "\t" + str(prev_loss) + " Test Loss:\t" + str(cur_loss) + "\n")
+            tlog.close()
 
-            if prev_loss < cur_loss:
+            if prev_loss < cur_loss and e >= 20:
                 done = True
             else:
-                cur_loss = prev_loss
+                prev_loss = cur_loss
                 torch.save(model.state_dict(), weight_path)
             e += 1
 
@@ -272,7 +276,7 @@ def test(input_path):
 
 # TODO: use 3-fold accuracy (Top-1)
 # the average 3-fold cross validation accuracy
-def x_validate(trainlist, testlist, epoch=30):
+def x_validate(trainlist, testlist, epoch=50):
     print("Cross Validation")
     score = []
     for i in range(len(trainlist)):
@@ -288,7 +292,7 @@ def x_validate(trainlist, testlist, epoch=30):
         kfold_train(5, "train.txt")
         print("Testing")
         s = test("test.txt")
-        rec.write(trainlist[i] + "\t" + testlist[i] + "\t" + s)
+        rec.write(trainlist[i] + "\t" + testlist[i] + "\t" + str(s))
         rec.close()
         score.append(s)
     print(score)
