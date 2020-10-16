@@ -131,7 +131,7 @@ learning_rate = 0.001
 # print(x)
 
 
-def train(input_path, epoch=30):
+def train(input_path, k, epoch=30):
     print("Load Model")
     print("Device:\t" + str(device))
     resnet = models.resnet18(pretrained=True).to(device)
@@ -146,8 +146,12 @@ def train(input_path, epoch=30):
     m = nn.Softmax(dim=0)
     for e in range(epoch):
         random.shuffle(data_list)
+        #print("data_list={}".format(data_list)) 
         for b in range(len(data_list)):
             label, folder_path = data_list[b].split()
+
+            #print("label = {}, folder_path = {}".format(label,folder_path)) 
+
             x = img.import_images2(resnet, folder_path).to(device)
             optimizer.zero_grad()
             # print(np.shape(x))
@@ -156,18 +160,32 @@ def train(input_path, epoch=30):
             x = model(x).squeeze(2)
             # print("output: " + str(np.shape(x)))
             # print(target)
+
+            #print("target = {}, x = {}".format(target, x))
+
             loss = criterion(x, target)
             print("Epoch: " + str(e) + "/" + str(epoch) + "\t" + str(b) + "/" + str(len(data_list)) + "\t" + folder_path[len(folder_path)-30:] + "\t" + str(loss))
             loss.backward()
             optimizer.step()
-        torch.save(model.state_dict(), weight_path)
-        print("Model Saved")
+            #input("debugging") 
 
+        weight_path_epoch =  "classifier-fold{}-epoch{}.weight".format(k,e) 
+        #torch.save(model.state_dict(), weight_path)
+        torch.save(model.state_dict(), weight_path_epoch)
+        print("Model Saved")
+        if e >= 0: 
+            with torch.no_grad(): 
+                s = test("test.txt",weight_path_epoch)
+            print("fold = {}, epoch = {}, acc = {}".format(k,e,s) )
+            log = open("log.txt", "a+")
+            log.write("fold = {}, epoch = {}, acc = {}".format(k,e,s) )
+            log.close()
 
 # TODO: split the training set into k sets
 # pick a set as the test set, the rest as train set
 # for each epoch: if the loss on the test set starts to increase, stop training
-def kfold_train(k, input_path, epoch=20):
+def kfold_train(k, input_path):
+    log = open("training_log.txt", "a+")
     print("Load Model")
     print("Device:\t" + str(device))
     resnet = models.resnet18(pretrained=True).to(device)
@@ -192,9 +210,6 @@ def kfold_train(k, input_path, epoch=20):
         folds.append(fold)
     # train
     print("Start Training")
-    tlog = open("training_log.txt", "a+")
-    tlog.write("Start Training\n")
-    tlog.close()
     for i in range(k):
         # pick test/train set
         testlist = folds[i]
@@ -210,13 +225,14 @@ def kfold_train(k, input_path, epoch=20):
             train_loss = torch.zeros(1).to(device)
             for b in range(len(trainlist)):
                 label, folder_path = trainlist[b].split()
+                print("folder_path = {}".format(folder_path)) 
                 x = img.import_images2(resnet, folder_path).to(device)
                 optimizer.zero_grad()
                 # print(np.shape(x))
                 # target = read_label(int(label), class_num).to(device)
                 target = torch.tensor([int(label)-1]).to(device)
                 x = model(x).squeeze(2)
-                # print("output: " + str(np.shape(x)))
+                print("target = {}, x = {}".format(target, x))
                 # print(target)
                 loss = criterion(x, target)
                 train_loss += loss
@@ -238,25 +254,23 @@ def kfold_train(k, input_path, epoch=20):
 
 
             print("Fold: " + str(i) + "\t" + "Epoch: " + str(e) + "\t" + str(prev_loss) + " Test Loss:\t" + str(cur_loss))
-            tlog = open("training_log.txt", "a+")
-            tlog.write("Fold: " + str(i) + "\t" + "Epoch: " + str(e) + "\t" + str(prev_loss) + " Test Loss:\t" + str(cur_loss) + "\n")
-            tlog.close()
+            log.write("Fold: " + str(i) + "\t" + "Epoch: " + str(e) + "\t" + str(prev_loss) + " Test Loss:\t" + str(cur_loss))
 
-            if prev_loss < cur_loss and e >= epoch:
+            if prev_loss < cur_loss and e >= 20:
                 done = True
             else:
-                prev_loss = cur_loss
+                cur_loss = prev_loss
                 torch.save(model.state_dict(), weight_path)
             e += 1
 
 
-def test(input_path):
+def test(input_path,weight_path_):
     print("Load Model")
     print("Device:\t" + str(device))
     resnet = models.resnet18(pretrained=True).to(device)
     model = Transformer(input_size=feature_num, seq_len=vid_len, class_num=class_num, attn_head=attn_head, dropout=dropout).to(device)
-    if os.path.isfile(weight_path):
-        model.load_state_dict(torch.load(weight_path))
+    if os.path.isfile(weight_path_):
+        model.load_state_dict(torch.load(weight_path_))
     print("Initialize Test Function")
     data_list = read_annotation(input_path)
     # random.shuffle(data_list)
@@ -276,31 +290,42 @@ def test(input_path):
 
 # TODO: use 3-fold accuracy (Top-1)
 # the average 3-fold cross validation accuracy
-def x_validate(trainlist, testlist, epoch=50):
+def x_validate(trainlist, testlist, epoch=30):
     print("Cross Validation")
     score = []
     for i in range(len(trainlist)):
-        rec = open("result.txt", "a+")
+        '''
         if os.path.isfile(weight_path):
-            os.remove(weight_path)
-        print("Weight deleted")
+            os.remove(weight_path)  
+        print("Weight deleted") '''
+
         print("Data Preparation")
         prep(trainlist[i], "train.txt")
         prep(testlist[i], "test.txt")
         print("Training")
-        # train("train.txt", epoch)
-        kfold_train(5, "train.txt")
+        train("train.txt", i, epoch)
+        #kfold_train(5, "train.txt")
+
         print("Testing")
-        s = test("test.txt")
-        rec.write(trainlist[i] + "\t" + testlist[i] + "\t" + str(s) + "\n")
-        rec.close()
+        weight_path_epoch =  "classifier-fold{}-epoch{}.weight".format(i,epoch-1) 
+        s = test("test.txt",weight_path_epoch)
+        log = open("log.txt", "a+")
+        log.write("fold = {}, epoch = {}, acc = {}".format(i,epoch-1,s) )
+        log.close()
+
         score.append(s)
+
     print(score)
     print(statistics.mean(score))
-    rec.write(statistics.mean(score))
 
-list1 = ["ucfTrainTestlist/trainlist01.txt","ucfTrainTestlist/trainlist02.txt","ucfTrainTestlist/trainlist03.txt"]
-list2 = ["ucfTrainTestlist/testlist01.txt","ucfTrainTestlist/testlist02.txt","ucfTrainTestlist/testlist03.txt"]
+    log = open("log.txt", "a+")
+    log.write("scores = {}".format(score)) 
+    log.write("3-fold acc = {}".format(sum(score) / len(score) ))
+    log.close() 
+ 
+
+list1 = ["dataset/ucfTrainTestlist/trainlist01.txt","dataset/ucfTrainTestlist/trainlist02.txt","dataset/ucfTrainTestlist/trainlist03.txt"]
+list2 = ["dataset/ucfTrainTestlist/testlist01.txt","dataset/ucfTrainTestlist/testlist02.txt","dataset/ucfTrainTestlist/testlist03.txt"]
 
 x_validate(list1, list2)
 
