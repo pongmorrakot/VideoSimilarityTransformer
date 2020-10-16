@@ -167,7 +167,7 @@ def train(input_path, epoch=30):
 # TODO: split the training set into k sets
 # pick a set as the test set, the rest as train set
 # for each epoch: if the loss on the test set starts to increase, stop training
-def kfold_train(k, input_path):
+def kfold_train(k, input_path, epoch=20):
     print("Load Model")
     print("Device:\t" + str(device))
     resnet = models.resnet18(pretrained=True).to(device)
@@ -193,7 +193,7 @@ def kfold_train(k, input_path):
     # train
     print("Start Training")
     tlog = open("training_log.txt", "a+")
-    tlog.write("Start Training")
+    tlog.write("Start Training\n")
     tlog.close()
     for i in range(k):
         # pick test/train set
@@ -242,7 +242,7 @@ def kfold_train(k, input_path):
             tlog.write("Fold: " + str(i) + "\t" + "Epoch: " + str(e) + "\t" + str(prev_loss) + " Test Loss:\t" + str(cur_loss) + "\n")
             tlog.close()
 
-            if prev_loss < cur_loss and e >= 20:
+            if prev_loss < cur_loss and e >= epoch:
                 done = True
             else:
                 prev_loss = cur_loss
@@ -292,7 +292,7 @@ def x_validate(trainlist, testlist, epoch=50):
         kfold_train(5, "train.txt")
         print("Testing")
         s = test("test.txt")
-        rec.write(trainlist[i] + "\t" + testlist[i] + "\t" + str(s))
+        rec.write(trainlist[i] + "\t" + testlist[i] + "\t" + str(s) + "\n")
         rec.close()
         score.append(s)
     print(score)
