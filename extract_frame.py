@@ -128,7 +128,7 @@ class FrameExtractor():
                     shutil.move(id_file, id_file[:-19] + '{:0>15.4f}'.format(id_time) + '.jpg')
                     id_time += 1.0 / frame_per_sec
 
-    def extract(self, mode='key', num_worker=5, frame_per_sec_q=1, frame_per_sec_r=1):
+    def extract(self, mode='key', num_worker=5, frame_needed=64):
         if mode == 'key':
             pool = Pool(processes=num_worker)
             for path in self.train_query_paths:
@@ -148,7 +148,13 @@ class FrameExtractor():
              
             '''
             for path in self.video_file_paths:
-                self.extract_uniformframe(path, self.output_root_path, frame_per_sec_q)
+                frame_num = subprocess.run(
+                    ['ffprobe', '-v', 'error', '-count_frames', '-select_streams', 'v:0', '-show_entries',
+                     'stream=nb_read_frames', 'format=duration', '-of', 'default=nokey=1:noprint_wrappers=1', path],
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                frame_num = int(frame_num.stdout)
+                frame_per_sec = math.floor(frame_needed/frame_num)
+                self.extract_uniformframe(path, self.output_root_path, frame_per_sec)
             
         else:
             None
@@ -161,12 +167,7 @@ frame_extractor = FrameExtractor(IN_PATH, OUT_PATH)
 
 
 # In[36]:
-
-# ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of default=nokey=1:noprint_wrappers=1 input.mkv
-frame_num = subprocess.run(['ffprobe', '-v', 'error', '-count_frames', '-select_streams', 'v:0', '-show_entries', 'stream=nb_read_frames', 'format=duration', '-of', 'default=nokey=1:noprint_wrappers=1', IN_PATH], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-frame_num = int(frame_num.stdout)
-frame_needed = 64
-frame_extractor.extract(mode='uniform', num_worker=16, frame_per_sec_q=math.floor(1/(frame_num/frame_needed)), frame_per_sec_r=1)
+frame_extractor.extract(mode='uniform', num_worker=16, frame_needed=64)
 
 
 # In[ ]:
