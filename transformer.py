@@ -14,11 +14,19 @@ from copy import deepcopy
 import img
 from train_prep import prep
 
+
+def schedule_lr(optimizer):
+    for params in optimizer.param_groups:
+        params['lr'] /= 10.
+
+    print(optimizer)
+
 # input = w x h x 3 x seq_len
 # CNN => ResNet,VCG, etc.
 #       shape = feature_num x seq_len
 # Transformer
 # output = 1 x class_num
+
 
 if torch.cuda.is_available():
     dev = "cuda:0"
@@ -90,8 +98,10 @@ def read_result(arr, label):
             curmax = i
     return label[i], arr[i]
 
+
 def read_annotation(input_path):
     return open(input_path, "r").readlines()
+
 
 # used for testing
 # compare the output of the network with the label
@@ -114,10 +124,10 @@ def eval(output):
 
 
 weight_path = "classifier.weight"
-feature_num = 1000
-vid_len = 200
+feature_num = 512
+vid_len = 8
 class_num = 101
-attn_head = 4
+attn_head = 8
 dropout = 0.2 # the dropout value
 learning_rate = 0.001
 
@@ -130,12 +140,17 @@ learning_rate = 0.001
 # print(np.shape(x))
 # print(x)
 
+from torchsummary import summary
+
+resnet = models.resnet18(pretrained=True).to(device)
+#summary(resnet,(3, 224,224)) 
+resnet_feature = torch.nn.Sequential(*list(resnet.children())[:-1])
+model = Transformer(input_size=feature_num, seq_len=vid_len, class_num=class_num, attn_head=attn_head, dropout=dropout).to(device)
+
 
 def train(input_path, k, epoch=30):
     print("Load Model")
     print("Device:\t" + str(device))
-    resnet = models.resnet18(pretrained=True).to(device)
-    model = Transformer(input_size=feature_num, seq_len=vid_len, class_num=class_num, attn_head=attn_head, dropout=dropout).to(device)
     if os.path.isfile(weight_path):
         model.load_state_dict(torch.load(weight_path))
     print("Initialize Training Function")
@@ -143,16 +158,24 @@ def train(input_path, k, epoch=30):
     optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
     data_list = read_annotation(input_path)
     print("Training Start")
+
+
     m = nn.Softmax(dim=0)
     for e in range(epoch):
         random.shuffle(data_list)
-        #print("data_list={}".format(data_list)) 
+        #print("data_list={}".format(data_list))
+
+        for param_group in optimizer.param_groups:
+            print("epoch = {}, lr = {}".format(e,param_group['lr'])) 
+
         for b in range(len(data_list)):
             label, folder_path = data_list[b].split()
 
-            #print("label = {}, folder_path = {}".format(label,folder_path)) 
+            #print("label = {}, folder_path = {}".format(label,folder_path))
 
-            x = img.import_images2(resnet, folder_path).to(device)
+            x = img.import_images2(resnet_feature, folder_path).to(device)
+            #print("x.shape = {}".format(x.shape) )
+
             optimizer.zero_grad()
             # print(np.shape(x))
             # target = read_label(int(label), class_num).to(device)
@@ -169,6 +192,14 @@ def train(input_path, k, epoch=30):
             optimizer.step()
             #input("debugging") 
 
+        if e==5: 
+            schedule_lr(optimizer)
+        if e==10:
+            schedule_lr(optimizer)
+        if e ==20:
+            schedule_lr(optimizer)
+
+
         weight_path_epoch =  "classifier-fold{}-epoch{}.weight".format(k,e) 
         #torch.save(model.state_dict(), weight_path)
         torch.save(model.state_dict(), weight_path_epoch)
@@ -178,7 +209,7 @@ def train(input_path, k, epoch=30):
                 s = test("test.txt",weight_path_epoch)
             print("fold = {}, epoch = {}, acc = {}".format(k,e,s) )
             log = open("log.txt", "a+")
-            log.write("fold = {}, epoch = {}, acc = {}".format(k,e,s) )
+            log.write("fold = {}, epoch = {}, acc = {}\n".format(k,e,s) )
             log.close()
 
 # TODO: split the training set into k sets
@@ -267,8 +298,10 @@ def kfold_train(k, input_path):
 def test(input_path,weight_path_):
     print("Load Model")
     print("Device:\t" + str(device))
+    '''
     resnet = models.resnet18(pretrained=True).to(device)
     model = Transformer(input_size=feature_num, seq_len=vid_len, class_num=class_num, attn_head=attn_head, dropout=dropout).to(device)
+    ''' 
     if os.path.isfile(weight_path_):
         model.load_state_dict(torch.load(weight_path_))
     print("Initialize Test Function")
@@ -279,7 +312,7 @@ def test(input_path,weight_path_):
     for entry in data_list:
         label, folder_path = entry.split()
         print(folder_path)
-        x = img.import_images2(resnet, folder_path).to(device)
+        x = img.import_images2(resnet_feature,folder_path).to(device)
         x = model(x).squeeze()
         if read_label(label, x):
             correct += 1
@@ -310,7 +343,7 @@ def x_validate(trainlist, testlist, epoch=30):
         weight_path_epoch =  "classifier-fold{}-epoch{}.weight".format(i,epoch-1) 
         s = test("test.txt",weight_path_epoch)
         log = open("log.txt", "a+")
-        log.write("fold = {}, epoch = {}, acc = {}".format(i,epoch-1,s) )
+        log.write("fold = {}, epoch = {}, acc = {}\n".format(i,epoch-1,s) )
         log.close()
 
         score.append(s)

@@ -25,9 +25,10 @@ preprocess = transforms.Compose([
 
 def import_images2(model, path):
     images = os.listdir(path)
-    images.sort(key = lambda x:x.lower())
+    images.sort(key = lambda x: x.lower())
+
     length = len(images)
-    arr = torch.zeros((200, 3, 224, 224)).to(device)
+    arr = torch.zeros((8, 3, 224, 224)).to(device)
     i = 0
     for img in images:
         input_image = Image.open(path + img)
@@ -36,8 +37,11 @@ def import_images2(model, path):
         # print(input_tensor)
         arr[i] = input_tensor
         i += 1
+        if i >= 8:
+            break 
     with torch.no_grad():
         arr = model(arr)
+    arr = arr.squeeze(-1).squeeze(-1) 
     return arr
 
 
