@@ -148,10 +148,7 @@ class FrameExtractor():
              
             '''
             for path in self.video_file_paths:
-                frame_num = subprocess.run(
-                    ['ffprobe', '-v', 'error', '-count_frames', '-select_streams', 'v:0', '-show_entries',
-                     'stream=nb_read_frames', 'format=duration', '-of', 'default=nokey=1:noprint_wrappers=1', path],
-                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                frame_num = subprocess.run(['ffprobe', '-v', 'error', '-count_frames', '-select_streams', 'v:0', '-show_entries', 'stream=nb_read_frames', '-of', 'default=nokey=1:noprint_wrappers=1', path], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                 frame_num = int(frame_num.stdout)
                 frame_per_sec = math.floor(frame_needed/frame_num)
                 self.extract_uniformframe(path, self.output_root_path, frame_per_sec)
