@@ -4,8 +4,8 @@
 # ## 关键帧提取
 
 # In[1]:
-
-
+import subprocess
+import math
 import os
 import sys
 import glob
@@ -157,13 +157,16 @@ class FrameExtractor():
 # In[35]:
 
 
-frame_extractor = FrameExtractor(IN_PATH,OUT_PATH)
+frame_extractor = FrameExtractor(IN_PATH, OUT_PATH)
 
 
 # In[36]:
 
-
-frame_extractor.extract(mode='uniform', num_worker=16, frame_per_sec_q=1, frame_per_sec_r=1)
+# ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of default=nokey=1:noprint_wrappers=1 input.mkv
+frame_num = subprocess.run(['ffprobe', '-v', 'error', '-count_frames', '-select_streams', 'v:0', '-show_entries', 'stream=nb_read_frames', 'format=duration', '-of', 'default=nokey=1:noprint_wrappers=1', IN_PATH], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+frame_num = int(frame_num.stdout)
+frame_needed = 64
+frame_extractor.extract(mode='uniform', num_worker=16, frame_per_sec_q=math.floor(1/(frame_num/frame_needed)), frame_per_sec_r=1)
 
 
 # In[ ]:
